@@ -1,0 +1,10 @@
+{
+  "name": "SPPG Insight Indonesia",
+  "short_name": "SPPG Insight",
+  "description": "Portal pemerataan, kualitas data, dan operasional SPPG Indonesia.",
+  "lang": "id",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f5f1",
+  "theme_color": "#0b3b36"
+}

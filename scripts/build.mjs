@@ -1,6 +1,7 @@
 // Build clean dataset + dashboard data bundle from raw_table.html
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -138,6 +139,13 @@ for (const m of raw.matchAll(/<tr>(.*?)<\/tr>/gs)) {
   rows.push({ no: Number(tds[0]), provinsi: tds[1], kabkota: tds[2], alamat: tds[3], yayasan: tds[4] });
 }
 
+const duplicateKey = (r) => [r.provinsi, r.kabkota, r.alamat, r.yayasan].join('|').toLowerCase();
+const duplicateCounts = rows.reduce((m, r) => {
+  const key = duplicateKey(r);
+  m[key] = (m[key] || 0) + 1;
+  return m;
+}, {});
+
 /* ------------------------------------------------------------------ *
  * 3. Enrich: coords (with phyllotaxis jitter for same kab/kota), flags
  * ------------------------------------------------------------------ */
@@ -158,6 +166,16 @@ for (const r of rows) {
   r.geoprov = PROV_TO_GEO[r.provinsi] || null;
   r.pulau = JAWA.has(r.provinsi) ? 'Jawa' : 'Luar Jawa';
   r.hasCoord = !!base;
+  r.id = 'sppg_' + crypto.createHash('sha1')
+    .update([r.no, r.provinsi, r.kabkota, r.alamat, r.yayasan].join('|'))
+    .digest('hex').slice(0, 12);
+  r.locationAccuracy = 'centroid_kabkota';
+  r.statusOperasional = 'belum_diverifikasi';
+  r.kapasitasPorsi = null;
+  r.penerimaManfaat = null;
+  r.tanggalBerdiri = null;
+  r.lastVerifiedAt = null;
+  r.catatanOperasional = null;
 
   // data-quality flags
   const flags = [];
@@ -170,6 +188,7 @@ for (const r of rows) {
     const re = new RegExp(`(^|[^a-z])${tok.replace(/ /g, '\\s+')}([^a-z]|$)`, 'i');
     if (re.test(low)) { flags.push('alamat_luar_provinsi'); break; }
   }
+  if (duplicateCounts[duplicateKey(r)] > 1) flags.push('duplikat_persis');
   r.flags = flags;
 }
 
@@ -224,7 +243,12 @@ const uncoveredProvinces = NASIONAL_38.filter((p) => !covered.has(p));
 
 const jawaCount = rows.filter((r) => r.pulau === 'Jawa').length;
 const meta = {
+  version: 2,
   generatedFrom: 'raw_table.html',
+  generatedAt: new Date().toISOString(),
+  datasetAsOf: process.env.DATASET_AS_OF || null,
+  sourceName: process.env.DATA_SOURCE_NAME || 'Tabel SPPG yang diberikan (315 baris)',
+  sourceUrl: process.env.DATA_SOURCE_URL || null,
   totalSPPG: rows.length,
   totalProvinsi: provinceList.length,
   totalKabkota: kabkotaList.length,
@@ -235,15 +259,24 @@ const meta = {
     yayasan_kosong: rows.filter((r) => r.flags.includes('yayasan_kosong')).length,
     alamat_minim: rows.filter((r) => r.flags.includes('alamat_minim')).length,
     alamat_luar_provinsi: rows.filter((r) => r.flags.includes('alamat_luar_provinsi')).length,
+    duplikat_persis: rows.filter((r) => r.flags.includes('duplikat_persis')).length,
   },
   provinsiNasional: 38,
   provinsiTanpaSPPGjumlah: 38 - provinceList.length,
   provinsiTanpaSPPG: uncoveredProvinces,
 };
 
+const duplicateGroups = Object.values(rows.reduce((m, r) => {
+  if (!r.flags.includes('duplikat_persis')) return m;
+  const key = duplicateKey(r);
+  (m[key] ||= []).push(r.id);
+  return m;
+}, {}));
+
 /* ------------------------------------------------------------------ *
  * 5. Outputs
  * ------------------------------------------------------------------ */
+fs.mkdirSync(P('dist'), { recursive: true });
 // CSV
 const csvCols = ['no', 'provinsi', 'kabkota', 'alamat', 'yayasan', 'pulau', 'lat', 'lng', 'flags'];
 const esc = (v) => {
@@ -258,11 +291,39 @@ fs.writeFileSync(P('data', 'sppg.json'), JSON.stringify(rows, null, 2));
 
 // Dashboard bundle (assigns a global so it works over file:// without fetch/CORS)
 const geo = JSON.parse(fs.readFileSync(P('data', 'id-provinces-34.geojson'), 'utf8'));
-const bundle = { meta, rows, provinceList, yayasanList, kabkotaList, geoCount, geojson: geo };
+const bundle = { meta, rows, provinceList, yayasanList, kabkotaList, geoCount, geojson: geo, duplicateGroups, nationalProvinces: NASIONAL_38 };
 fs.writeFileSync(P('dist', 'data.js'), 'window.SPPG_DATA = ' + JSON.stringify(bundle) + ';\n');
+
+// Browser-safe runtime configuration. The Supabase publishable/anon key is
+// intentionally public and protected by Row Level Security in supabase/schema.sql.
+const config = {
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
+  dataMode: process.env.SPPG_DATA_MODE || 'auto',
+  siteUrl: process.env.SITE_URL || '',
+};
+fs.writeFileSync(P('dist', 'config.js'), 'window.SPPG_CONFIG = ' + JSON.stringify(config) + ';\n');
+
+// Produce a clean, deploy-only directory. The repository source and raw table
+// are deliberately not copied, so Vercel can publish `dist` safely.
+fs.mkdirSync(P('dist', 'assets'), { recursive: true });
+fs.mkdirSync(P('dist', 'vendor'), { recursive: true });
+for (const name of ['styles.css', 'app.js', 'admin.js', 'shared.js']) {
+  fs.copyFileSync(P('src', name), P('dist', 'assets', name));
+}
+for (const name of ['leaflet.css', 'MarkerCluster.css', 'MarkerCluster.Default.css', 'leaflet.js', 'leaflet.markercluster.js', 'chart.umd.min.js']) {
+  fs.copyFileSync(P('vendor', name), P('dist', 'vendor', name));
+}
+for (const name of ['index.html', 'admin.html']) fs.copyFileSync(P(name), P('dist', name));
+for (const name of ['manifest.webmanifest', 'robots.txt']) {
+  const source = P('public', name);
+  if (fs.existsSync(source)) fs.copyFileSync(source, P('dist', name));
+}
+const ogSource = P('public', 'og.png');
+if (fs.existsSync(ogSource)) fs.copyFileSync(ogSource, P('dist', 'og.png'));
 
 console.log('Rows:', rows.length, '| Provinsi:', provinceList.length, '| Kab/kota:', kabkotaList.length, '| Yayasan:', meta.totalYayasan);
 console.log('Missing coords:', missingCoords.size);
-console.log('Flags:', JSON.stringify(meta.flagged));
+console.log('Flags:', JSON.stringify(meta.flagged), '| Duplicate groups:', duplicateGroups.length);
 console.log('Top yayasan:', yayasanList.slice(0, 5).map((y) => `${y.yayasan} (${y.count})`).join(', '));
-console.log('Wrote data/sppg.csv, data/sppg.json, dist/data.js');
+console.log('Wrote clean dataset and production site to dist/');

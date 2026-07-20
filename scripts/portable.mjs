@@ -8,15 +8,15 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const P = (...a) => path.join(root, ...a);
 const read = (p) => fs.readFileSync(P(p), 'utf8');
 
-let html = read('index.html');
+let html = read('dist/index.html');
 
 // inline <link rel="stylesheet" href="vendor/x.css">
-html = html.replace(/<link rel="stylesheet" href="(vendor\/[^"]+)"\s*\/>/g,
-  (_, href) => `<style>\n${read(href)}\n</style>`);
+html = html.replace(/<link rel="stylesheet" href="((?:vendor|assets)\/[^"]+)"\s*\/>/g,
+  (_, href) => `<style>\n${read('dist/' + href)}\n</style>`);
 
 // inline <script src="vendor/x.js"></script> and dist/data.js
-html = html.replace(/<script src="((?:vendor|dist)\/[^"]+)"><\/script>/g,
-  (_, src) => `<script>\n${read(src)}\n</script>`);
+html = html.replace(/<script src="((?:vendor|assets)\/[^"]+|(?:data|config)\.js)"><\/script>/g,
+  (_, src) => `<script>\n${read('dist/' + src)}\n</script>`);
 
 fs.mkdirSync(P('dist'), { recursive: true });
 fs.writeFileSync(P('dist', 'sppg-dashboard-standalone.html'), html);

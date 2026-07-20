@@ -1,66 +1,121 @@
-# Dashboard Geospasial Sebaran SPPG Indonesia
+# SPPG Insight Indonesia
 
-Dataset bersih + dashboard peta interaktif untuk **315 SPPG** (Satuan Pelayanan
-Pemenuhan Gizi — dapur Program Makan Bergizi) di **29 provinsi / 153 kabupaten-kota**.
+Portal pemerataan, kualitas data, dan operasional SPPG Indonesia. Versi 2 tetap
+dapat berjalan sebagai snapshot statis, tetapi bisa dihubungkan ke Supabase
+untuk status operasional, kapasitas, penerima manfaat, koordinat presisi, data
+konteks provinsi, autentikasi admin, dan audit perubahan.
 
-## Cara pakai
+## Fitur
 
-**Paling mudah — file tunggal:** buka `dist/sppg-dashboard-standalone.html`
-langsung di browser (dobel-klik). Semua CSS/JS/data sudah menyatu di satu file;
-hanya *peta dasar* (tile) yang butuh internet.
+### Dashboard publik
 
-**Versi proyek (butuh server kecil karena memuat file terpisah):**
+- Ringkasan nasional dengan KPI yang konsisten terhadap filter.
+- Peta Leaflet dengan marker cluster dan penjelasan presisi lokasi.
+- Filter provinsi, mitra, status, dan pencarian; state filter dapat dibagikan lewat URL.
+- Detail setiap SPPG dalam side drawer.
+- Tampilan desktop, tablet, dan mobile; tabel berubah menjadi kartu pada layar kecil.
+- Tema terang/gelap dan elemen interaktif yang dapat digunakan dengan keyboard.
+
+### Pemerataan dan demand gap
+
+- Konsentrasi provinsi, share top 3, dan provinsi tanpa cakupan.
+- Indeks gap proxy ketika data kebutuhan belum tersedia.
+- Demand gap berbobot otomatis ketika populasi sasaran atau target porsi diisi.
+- Perbandingan dua provinsi dan ekspor ringkasan analitik.
+- Label metodologi yang membedakan proxy dari metrik berbobot.
+
+### Kualitas data
+
+- Skor kesiapan berdasarkan kelengkapan, konsistensi, keunikan, kualitas alamat,
+  dan presisi lokasi.
+- Flag `yayasan_kosong`, `alamat_minim`, `alamat_luar_provinsi`, dan
+  `duplikat_persis`.
+- Snapshot saat ini memiliki 4 pasangan duplikat persis atau 8 baris terlibat.
+- Catatan bahwa koordinat snapshot adalah centroid kabupaten/kota, bukan lokasi
+  presisi dapur.
+
+### Portal admin opsional
+
+- Login email/password melalui Supabase Auth.
+- Otorisasi admin menggunakan Row Level Security.
+- Pembaruan status, kapasitas, penerima manfaat, tanggal berdiri, lokasi presisi,
+  dan catatan verifikasi.
+- Data konteks per provinsi: populasi sasaran, target porsi, sekolah, stunting,
+  kemiskinan, periode, dan sumber.
+- Audit perubahan tersimpan di `sppg_audit_log`.
+- Dashboard publik otomatis memakai database dan kembali ke snapshot lokal bila
+  backend tidak tersedia.
+
+## Menjalankan lokal
 
 ```bash
-npm run serve      # buka http://localhost:5177
+npm run build
+npm run serve
 ```
 
-## Skrip
+Buka `http://localhost:5177`. Portal admin tersedia di
+`http://localhost:5177/admin`.
+
+Perintah lain:
 
 | Perintah | Fungsi |
 |---|---|
-| `npm run build`    | Parse `data/raw_table.html` → `data/sppg.csv`, `data/sppg.json`, `dist/data.js` |
-| `npm run portable` | Rakit `dist/sppg-dashboard-standalone.html` (semua di-inline) |
-| `npm run all`      | build + portable |
-| `npm run serve`    | Server statis lokal di port 5177 |
+| `npm run build` | Bersihkan data dan buat website produksi di `dist/` |
+| `npm run serve` | Sajikan folder produksi di port 5177 |
+| `npm run portable` | Buat dashboard publik file tunggal |
+| `npm run validate` | Validasi data, ID, koordinat, dan output deploy |
+| `npm run all` | Build, portable, dan validasi |
 
-## Fitur dashboard
+## Mengaktifkan backend
 
-- **KPI ringkas** — total SPPG, cakupan provinsi (29/38), kab/kota, yayasan/mitra, % Jawa vs Luar Jawa.
-- **Peta** (Leaflet):
-  - **Choropleth** provinsi diwarnai per jumlah SPPG (provinsi pemekaran Papua digabung ke poligon induk).
-  - **Titik/marker cluster** per SPPG di centroid kab/kota; titik oranye = ada catatan kualitas data. Klik provinsi untuk memfilter.
-- **Grafik** — Top Provinsi, Top Yayasan, Jawa vs Luar Jawa (semua ikut ter-filter).
-- **Filter** provinsi · yayasan · pencarian alamat/kab-kota · chip flag kualitas data.
-- **Tabel** lengkap, bisa diurutkan, dengan tombol **Export CSV** (mengikuti filter).
-- **Panel insight** — konsentrasi yayasan, ketimpangan wilayah + daftar 9 provinsi belum terjangkau, flag kualitas data.
+1. Buat project Supabase.
+2. Jalankan `supabase/schema.sql` di SQL Editor.
+3. Buat pengguna melalui Authentication > Users.
+4. Tambahkan UUID pengguna tersebut ke `public.admin_users` dengan contoh
+   `INSERT` pada bagian akhir schema.
+5. Salin `.env.example` menjadi konfigurasi lingkungan lokal atau isi variabel
+   yang sama di Vercel.
+6. Build ulang, masuk ke `/admin`, lalu pilih **Sinkronkan snapshot awal**.
 
-## Skema dataset (`data/sppg.csv` / `sppg.json`)
+`SUPABASE_ANON_KEY` memang dikirim ke browser. Keamanan data tulis tidak
+bergantung pada kerahasiaan key tersebut, tetapi pada Auth dan kebijakan RLS di
+schema. Jangan pernah menaruh service-role key pada frontend atau Vercel env
+yang disuntikkan ke `config.js`.
 
-| Kolom | Keterangan |
-|---|---|
-| `no` | Nomor urut asli |
-| `provinsi`, `kabkota`, `alamat`, `yayasan` | Data sumber (sudah dibersihkan) |
-| `pulau` | `Jawa` / `Luar Jawa` |
-| `lat`, `lng` | Koordinat centroid kab/kota (disebar sedikit bila banyak dapur di satu kab/kota) |
-| `flags` | Catatan kualitas data (dipisah `|`): `yayasan_kosong`, `alamat_minim`, `alamat_luar_provinsi` |
+## Deploy ke Vercel
 
-## Catatan penting (keterbatasan data)
+Repository sudah memiliki `vercel.json` dengan:
 
-- **Koordinat = pusat administratif kab/kota**, bukan lokasi presisi dapur. Sumber hanya
-  memuat alamat teks tanpa lat/long, jadi titik akurat di level kabupaten. Untuk presisi
-  per-dapur perlu geocoding alamat (butuh internet & verifikasi manual).
-- Nama provinsi/kab-kota dari sumber punya artefak OCR (mis. "Diy", "Lhokseuma we") yang
-  sudah dinormalkan saat transkripsi ke `data/raw_table.html`.
-- **Flag kualitas data** bersifat *penanda untuk ditinjau*, bukan vonis salah:
-  - `yayasan_kosong` (4) — kolom yayasan berisi `-`.
-  - `alamat_minim` (26) — alamat sangat singkat / hanya nama desa.
-  - `alamat_luar_provinsi` (1) — alamat menyebut provinsi lain (indikasi salah tempel; mis. dapur Gresik beralamat Kota Tegal).
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- clean URLs
+- security headers dan Content Security Policy
+- caching terpisah untuk aset, data, dan konfigurasi
 
-## Ide pengembangan lanjutan
+Hubungkan repository ke Vercel lalu isi variabel dari `.env.example`. Tanpa
+Supabase, deployment tetap berfungsi penuh dalam mode snapshot publik; halaman
+admin menampilkan petunjuk aktivasi backend.
 
-- Geocoding presisi per alamat (Nominatim/Google) + verifikasi.
-- Kolom tambahan: kapasitas porsi, jumlah penerima manfaat, status operasional, tanggal berdiri.
-- Tautkan ke batas **kecamatan/desa** untuk analisis mikro.
-- Layer analitik: jarak ke sekolah/posyandu, populasi anak, indeks kemiskinan (overlay demand vs supply).
-- Auto-refresh dari sumber data resmi (BGN) bila tersedia API.
+## Struktur penting
+
+```text
+index.html                 halaman publik
+admin.html                 portal operasional
+src/                       CSS dan JavaScript sumber
+data/                      tabel mentah dan dataset bersih
+scripts/build.mjs          pipeline data + output deploy
+supabase/schema.sql        database, RLS, dan audit
+dist/                      output produksi untuk Vercel
+vercel.json                konfigurasi hosting
+```
+
+## Keterbatasan analisis
+
+- Koordinat bawaan adalah centroid kabupaten/kota dan beberapa titik digeser
+  secara visual agar tidak bertumpuk.
+- Indeks gap tanpa data konteks merupakan proxy pemerataan terhadap rata-rata
+  38 provinsi, bukan estimasi kebutuhan gizi.
+- Isi tanggal snapshot dan sumber resmi melalui `DATASET_AS_OF`,
+  `DATA_SOURCE_NAME`, dan `DATA_SOURCE_URL` sebelum publikasi final.
+- Verifikasi duplikat terhadap sumber primer sebelum menghapus baris; pasangan
+  identik belum tentu duplikasi administratif.

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#0b3b36" />
+  <title>Admin · SPPG Insight Indonesia</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body class="admin-body">
+  <a class="skip-link" href="#adminMain">Lewati ke konten utama</a>
+  <header class="app-header">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"><span></span></span><span><b>SPPG Insight</b><small>Portal Admin</small></span></a>
+    <div class="header-actions"><a class="icon-button admin-link" href="index.html">Lihat dashboard</a><button type="button" class="icon-button" id="themeToggle" aria-label="Ganti tema">◐</button></div>
+  </header>
+
+  <main id="adminMain" class="admin-main">
+    <section class="admin-login panel" id="adminLogin">
+      <span class="admin-lock" aria-hidden="true">●</span>
+      <p class="eyebrow"><span></span> Area terbatas</p>
+      <h1>Masuk untuk mengelola data operasional</h1>
+      <p>Portal publik tetap menggunakan snapshot lokal sampai backend dikonfigurasi. Admin memakai Supabase Auth dan kebijakan Row Level Security.</p>
+      <div class="config-warning" id="configWarning" hidden><b>Backend belum diaktifkan.</b><span>Isi variabel lingkungan Supabase di Vercel untuk mengaktifkan login dan penyimpanan persisten.</span></div>
+      <form id="loginForm" class="login-form">
+        <label>Email<input type="email" id="loginEmail" autocomplete="username" required placeholder="admin@organisasi.id" /></label>
+        <label>Kata sandi<input type="password" id="loginPassword" autocomplete="current-password" required /></label>
+        <button type="submit" class="button primary">Masuk</button>
+        <p class="form-message" id="loginMessage" role="alert"></p>
+      </form>
+      <details><summary>Langkah aktivasi backend</summary><ol><li>Buat project Supabase dan jalankan <code>supabase/schema.sql</code>.</li><li>Buat akun admin, lalu tambahkan ID pengguna ke tabel <code>admin_users</code>.</li><li>Isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> di Vercel.</li><li>Deploy ulang dan sinkronkan snapshot awal dari halaman ini.</li></ol></details>
+    </section>
+
+    <section id="adminWorkspace" class="admin-workspace" hidden>
+      <div class="admin-welcome"><div><p class="eyebrow"><span></span> Ruang kerja operasional</p><h1>Kelola status dan kapasitas SPPG</h1><p id="adminIdentity"></p></div><div class="admin-actions"><button type="button" class="button secondary" id="seedData">Sinkronkan snapshot awal</button><button type="button" class="button secondary" id="logoutButton">Keluar</button></div></div>
+      <section class="kpi-grid four" id="adminKpis"></section>
+      <div class="admin-grid">
+        <aside class="panel admin-record-list">
+          <div class="panel-head"><div><span class="section-kicker">315 lokasi</span><h2>Pilih data</h2></div></div>
+          <label class="admin-search">Cari<input type="search" id="adminSearch" placeholder="Wilayah atau yayasan" /></label>
+          <div id="adminRecords" class="admin-records"></div>
+        </aside>
+        <section class="panel admin-editor">
+          <div class="empty-editor" id="emptyEditor"><span>◎</span><h2>Pilih satu SPPG</h2><p>Data identitas tetap mengikuti sumber; lengkapi status, kapasitas, penerima manfaat, dan hasil verifikasi di sini.</p></div>
+          <form id="recordForm" hidden>
+            <div class="editor-heading"><div><span class="section-kicker" id="editorNumber">Data SPPG</span><h2 id="editorTitle">—</h2><p id="editorAddress"></p></div><span class="status-badge" id="editorFlag">Belum diverifikasi</span></div>
+            <div class="editor-grid">
+              <label>Status operasional<select id="editStatus"><option value="belum_diverifikasi">Belum diverifikasi</option><option value="persiapan">Persiapan</option><option value="operasional">Operasional</option><option value="nonaktif">Nonaktif</option></select></label>
+              <label>Tanggal berdiri<input type="date" id="editEstablished" /></label>
+              <label>Kapasitas porsi / hari<input type="number" id="editCapacity" min="0" step="1" inputmode="numeric" /></label>
+              <label>Penerima manfaat<input type="number" id="editBeneficiaries" min="0" step="1" inputmode="numeric" /></label>
+              <label>Lintang presisi<input type="number" id="editLat" step="0.000001" min="-11" max="6" /></label>
+              <label>Bujur presisi<input type="number" id="editLng" step="0.000001" min="95" max="141.5" /></label>
+              <label class="full-field">Catatan operasional<textarea id="editNotes" rows="4" maxlength="1000" placeholder="Catatan verifikasi, kendala, atau tindak lanjut"></textarea></label>
+            </div>
+            <div class="editor-actions"><span id="saveMessage" class="form-message" role="status"></span><button type="submit" class="button primary">Simpan perubahan</button></div>
+          </form>
+        </section>
+      </div>
+      <section class="panel context-admin-panel">
+        <div class="panel-head"><div><span class="section-kicker">Data konteks provinsi</span><h2>Aktifkan demand gap berbobot</h2></div><span class="dataset-count" id="contextCoverage">0 / 38 lengkap</span></div>
+        <form id="contextForm" class="context-admin-form">
+          <label>Provinsi<select id="contextProvince"></select></label>
+          <label>Populasi sasaran<input type="number" id="contextPopulation" min="0" step="1" /></label>
+          <label>Target porsi / hari<input type="number" id="contextTarget" min="0" step="1" /></label>
+          <label>Jumlah sekolah<input type="number" id="contextSchools" min="0" step="1" /></label>
+          <label>Stunting (%)<input type="number" id="contextStunting" min="0" max="100" step="0.01" /></label>
+          <label>Kemiskinan (%)<input type="number" id="contextPoverty" min="0" max="100" step="0.01" /></label>
+          <label>Periode<input type="text" id="contextPeriod" maxlength="50" placeholder="mis. 2025" /></label>
+          <label>Sumber<input type="text" id="contextSource" maxlength="200" placeholder="Nama publikasi / instansi" /></label>
+          <label class="context-url">URL sumber<input type="url" id="contextUrl" maxlength="500" placeholder="https://…" /></label>
+          <div class="context-form-action"><span id="contextMessage" class="form-message"></span><button type="submit" class="button primary">Simpan konteks</button></div>
+        </form>
+      </section>
+    </section>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="config.js"></script>
+  <script src="data.js"></script>
+  <script src="assets/shared.js"></script>
+  <script src="assets/admin.js"></script>
+</body>
+</html>
