@@ -1,0 +1,13 @@
+{
+  "name": "sppg-geospatial-dashboard",
+  "version": "1.0.0",
+  "description": "Dataset bersih + dashboard geospasial sebaran SPPG (Satuan Pelayanan Pemenuhan Gizi) di Indonesia",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "portable": "node scripts/portable.mjs",
+    "serve": "node scripts/serve.mjs",
+    "all": "node scripts/build.mjs && node scripts/portable.mjs"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard Geospasial Sebaran SPPG Indonesia</title>
+<link rel="stylesheet" href="vendor/leaflet.css" />
+<link rel="stylesheet" href="vendor/MarkerCluster.css" />
+<link rel="stylesheet" href="vendor/MarkerCluster.Default.css" />
+<style>
+  :root {
+    --bg: #f4f6fb; --panel: #ffffff; --ink: #1f2933; --muted: #6b7280;
+    --line: #e5e9f2; --brand: #0d9488; --brand2: #6366f1; --accent: #f59e0b;
+    --danger: #ef4444; --shadow: 0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.04);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#9aa4b2; --line:#242c38;
+      --shadow: 0 1px 3px rgba(0,0,0,.4); }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:14px; line-height:1.45; }
+  a { color:var(--brand); }
+  header.top { padding:20px 24px; background:linear-gradient(120deg,#0d9488,#6366f1);
+    color:#fff; box-shadow:var(--shadow); }
+  header.top h1 { margin:0; font-size:21px; font-weight:700; letter-spacing:-.2px; }
+  header.top p { margin:4px 0 0; opacity:.9; font-size:13px; }
+  .wrap { max-width:1500px; margin:0 auto; padding:18px 20px 60px; }
+  .kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:18px 0; }
+  .kpi { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 16px; box-shadow:var(--shadow); }
+  .kpi .n { font-size:26px; font-weight:750; letter-spacing:-.5px; }
+  .kpi .l { color:var(--muted); font-size:12px; margin-top:2px; }
+  .kpi .sub { font-size:11px; color:var(--brand); margin-top:4px; font-weight:600; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:var(--panel);
+    border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; box-shadow:var(--shadow); }
+  .toolbar label { font-size:11px; color:var(--muted); display:block; margin-bottom:3px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.3px; }
+  select, input[type=search] { background:var(--bg); color:var(--ink); border:1px solid var(--line);
+    border-radius:9px; padding:8px 10px; font-size:13px; min-width:170px; font-family:inherit; }
+  input[type=search] { min-width:210px; }
+  .chip { border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:999px;
+    padding:6px 12px; font-size:12px; cursor:pointer; font-weight:600; }
+  .chip.active { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .chip.flag { border-color:var(--accent); color:var(--accent); }
+  .chip.flag.active { background:var(--accent); color:#161b22; }
+  .btn { border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:9px;
+    padding:8px 14px; font-size:13px; cursor:pointer; font-weight:600; }
+  .btn.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .grid { display:grid; grid-template-columns:1.9fr 1fr; gap:16px; margin-top:16px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); overflow:hidden; }
+  .card h3 { margin:0; padding:13px 16px; font-size:14px; border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; }
+  .card h3 small { color:var(--muted); font-weight:500; font-size:12px; }
+  .card .body { padding:14px 16px; }
+  #map { height:620px; width:100%; }
+  .legend { line-height:1.6; font-size:12px; }
+  .legend i { width:16px; height:12px; display:inline-block; margin-right:6px; border-radius:2px; opacity:.85; }
+  .leaflet-popup-content { font-size:13px; line-height:1.5; }
+  .charts { display:flex; flex-direction:column; gap:16px; }
+  .chartbox { position:relative; height:210px; }
+  .insights { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:16px; }
+  .stat-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--line); }
+  .stat-row:last-child { border-bottom:0; }
+  .stat-row b { font-variant-numeric:tabular-nums; }
+  .pill { display:inline-block; background:var(--bg); border:1px solid var(--line); border-radius:999px;
+    padding:2px 9px; font-size:11px; margin:2px 3px 2px 0; }
+  .pill.warn { border-color:var(--accent); color:var(--accent); }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { position:sticky; top:0; background:var(--panel); cursor:pointer; user-select:none; white-space:nowrap; z-index:1; }
+  th:hover { color:var(--brand); }
+  .tablewrap { max-height:520px; overflow:auto; }
+  .badge { font-size:10px; padding:1px 7px; border-radius:999px; font-weight:700; white-space:nowrap; }
+  .badge.j { background:#0d948820; color:var(--brand); }
+  .badge.lj { background:#6366f120; color:var(--brand2); }
+  .fl { font-size:10px; padding:1px 6px; border-radius:6px; background:#f59e0b22; color:#b45309; font-weight:700;
+    margin-right:3px; white-space:nowrap; }
+  @media (prefers-color-scheme: dark){ .fl{ color:#fbbf24; } }
+  .muted { color:var(--muted); }
+  .footnote { color:var(--muted); font-size:12px; margin-top:24px; }
+  @media (max-width:1100px){ .kpis{grid-template-columns:repeat(3,1fr);} .grid{grid-template-columns:1fr;}
+    .insights{grid-template-columns:1fr;} #map{height:460px;} }
+  @media (max-width:640px){ .kpis{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>🍚 Dashboard Geospasial Sebaran SPPG Indonesia</h1>
+  <p>Satuan Pelayanan Pemenuhan Gizi (Program Makan Bergizi) — <span id="hcount"></span> dapur di seluruh Indonesia</p>
+</header>
+
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="toolbar">
+    <div><label>Provinsi</label><select id="fProv"></select></div>
+    <div><label>Yayasan / Mitra</label><select id="fYay"></select></div>
+    <div><label>Cari alamat / kab-kota</label><input type="search" id="fQ" placeholder="mis. Karawang, Jl. Pesantren…" /></div>
+    <div style="align-self:flex-end; display:flex; gap:6px; flex-wrap:wrap;">
+      <span class="chip flag" data-flag="yayasan_kosong">⚑ Yayasan kosong</span>
+      <span class="chip flag" data-flag="alamat_minim">⚑ Alamat minim</span>
+      <span class="chip flag" data-flag="alamat_luar_provinsi">⚑ Beda wilayah</span>
+    </div>
+    <div style="align-self:flex-end; display:flex; gap:6px; margin-left:auto;">
+      <span class="chip active" id="tglChoro">🗺️ Choropleth</span>
+      <span class="chip active" id="tglPts">📍 Titik</span>
+      <button class="btn" id="btnReset">Reset</button>
+      <button class="btn primary" id="btnExport">⬇ Export CSV</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Peta Sebaran <small id="mapNote">centroid kab/kota · warna provinsi = jumlah SPPG</small></h3>
+      <div id="map"></div>
+    </div>
+    <div class="charts">
+      <div class="card"><h3>Top Provinsi <small>jumlah SPPG</small></h3><div class="body"><div class="chartbox"><canvas id="chProv"></canvas></div></div></div>
+      <div class="card"><h3>Top Yayasan / Mitra <small>jumlah dapur</small></h3><div class="body"><div class="chartbox"><canvas id="chYay"></canvas></div></div></div>
+      <div class="card"><h3>Jawa vs Luar Jawa <small>ketimpangan sebaran</small></h3><div class="body"><div class="chartbox"><canvas id="chPulau"></canvas></div></div></div>
+    </div>
+  </div>
+
+  <div class="insights">
+    <div class="card">
+      <h3>🏢 Konsentrasi Yayasan</h3>
+      <div class="body">
+        <p class="muted" style="margin-top:0">Mitra dengan dapur terbanyak & jangkauan lintas wilayah.</p>
+        <div id="insYay"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>⚖️ Ketimpangan Wilayah</h3>
+      <div class="body">
+        <div id="insGap"></div>
+        <p style="margin:10px 0 4px" class="muted">Provinsi belum terjangkau (<span id="uncCount"></span> dari 38):</p>
+        <div id="insUnc"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🔍 Kualitas Data</h3>
+      <div class="body">
+        <p class="muted" style="margin-top:0">Klik untuk menyaring baris bermasalah.</p>
+        <div id="insFlags"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3>Tabel Data <small id="tblNote"></small></h3>
+    <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <p class="footnote">
+    Sumber: tabel SPPG yang diberikan (315 baris). Koordinat = <b>pusat administratif kab/kota</b> (bukan alamat presisi dapur),
+    sehingga titik dalam satu kab/kota disebar sedikit agar tak bertumpuk. Provinsi hasil pemekaran (Papua Tengah, Papua Pegunungan,
+    Papua Barat Daya) digabung ke poligon induknya pada choropleth. Data mentah &amp; bersih tersedia di
+    <code>data/sppg.csv</code>, <code>data/sppg.json</code>.
+  </p>
+</div>
+
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/leaflet.markercluster.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
+<script src="dist/data.js"></script>
+<script>
+const D = window.SPPG_DATA;
+const $ = (s) => document.querySelector(s);
+const fmt = (n) => n.toLocaleString('id-ID');
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const FLAG_LABEL = { yayasan_kosong:'Yayasan kosong', alamat_minim:'Alamat minim', alamat_luar_provinsi:'Beda wilayah' };
+
+const state = { prov:'', yay:'', q:'', flag:'', geoprov:'', choro:true, pts:true, sortKey:'no', sortDir:1 };
+
+/* ---------- filtering ---------- */
+function filtered() {
+  const q = state.q.trim().toLowerCase();
+  return D.rows.filter(r =>
+    (!state.prov || r.provinsi === state.prov) &&
+    (!state.geoprov || r.geoprov === state.geoprov) &&
+    (!state.yay || (r.yayasan === '-' ? '(Tanpa Yayasan)' : r.yayasan) === state.yay) &&
+    (!state.flag || r.flags.includes(state.flag)) &&
+    (!q || (r.alamat.toLowerCase().includes(q) || r.kabkota.toLowerCase().includes(q) || r.provinsi.toLowerCase().includes(q)))
+  );
+}
+
+/* ---------- KPI ---------- */
+function renderKPI(rows) {
+  const m = D.meta;
+  const nfilt = rows.length;
+  const jawa = rows.filter(r=>r.pulau==='Jawa').length;
+  const showing = nfilt === m.totalSPPG ? '' : `<div class="sub">menampilkan ${fmt(nfilt)}</div>`;
+  const cards = [
+    ['Total SPPG', fmt(m.totalSPPG), 'dapur terdata', showing],
+    ['Provinsi', `${m.totalProvinsi}<span class="muted" style="font-size:15px">/38</span>`, `${m.provinsiTanpaSPPGjumlah} belum terjangkau`, ''],
+    ['Kabupaten/Kota', fmt(m.totalKabkota), 'wilayah tercakup', ''],
+    ['Yayasan / Mitra', fmt(m.totalYayasan), 'penyelenggara', ''],
+    ['Sebaran di Jawa', Math.round(m.jawa/m.totalSPPG*100)+'%', `${fmt(m.jawa)} dapur`, ''],
+    ['Luar Jawa', Math.round(m.luarJawa/m.totalSPPG*100)+'%', `${fmt(m.luarJawa)} dapur`, ''],
+  ];
+  $('#kpis').innerHTML = cards.map(([l,n,s,extra]) =>
+    `<div class="kpi"><div class="n">${n}</div><div class="l">${l}</div><div class="sub">${s}</div>${extra}</div>`).join('');
+  $('#hcount').textContent = fmt(m.totalSPPG);
+}
+
+/* ---------- MAP ---------- */
+let map, choroLayer, clusterLayer, legend;
+const BUCKETS = [ [51,'#0b3d2e'], [21,'#0f766e'], [11,'#0d9488'], [6,'#2dd4bf'], [3,'#7ee7d8'], [1,'#c7f2ea'], [0,'#eef2f6'] ];
+function colorFor(c){ for (const [t,col] of BUCKETS) if (c>=t) return col; return '#eef2f6'; }
+
+function initMap() {
+  map = L.map('map', { zoomControl:true, minZoom:4 }).setView([-2.3, 118], 5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/'+(isDark?'dark_all':'light_all')+'/{z}/{x}/{y}{r}.png', {
+    attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19
+  }).addTo(map);
+
+  legend = L.control({ position:'bottomright' });
+  legend.onAdd = () => {
+    const d = L.DomUtil.create('div','card'); d.style.padding='8px 10px';
+    d.innerHTML = '<div class="legend"><b>Jumlah SPPG / Provinsi</b><br>' +
+      [['51+',BUCKETS[0][1]],['21–50',BUCKETS[1][1]],['11–20',BUCKETS[2][1]],['6–10',BUCKETS[3][1]],['3–5',BUCKETS[4][1]],['1–2',BUCKETS[5][1]],['0',BUCKETS[6][1]]]
+      .map(([t,c])=>`<i style="background:${c}"></i>${t}`).join('<br>') +
+      '<hr style="border:0;border-top:1px solid var(--line);margin:6px 0">' +
+      '<span style="color:#14b8a6">●</span> SPPG &nbsp; <span style="color:#f59e0b">●</span> perlu cek</div>';
+    return d;
+  };
+  legend.addTo(map);
+  clusterLayer = L.markerClusterGroup({ maxClusterRadius:45, spiderfyOnMaxZoom:true });
+}
+
+function drawChoropleth(rows) {
+  if (choroLayer) map.removeLayer(choroLayer);
+  if (!state.choro) return;
+  const gc = {};
+  for (const r of rows) if (r.geoprov) gc[r.geoprov] = (gc[r.geoprov]||0)+1;
+  choroLayer = L.geoJSON(D.geojson, {
+    style: (f) => {
+      const c = gc[f.properties.state] || 0;
+      return { fillColor: colorFor(c), weight: state.geoprov===f.properties.state?2.2:0.7,
+        color: state.geoprov===f.properties.state?'#f59e0b':'#94a3b8', fillOpacity:.72 };
+    },
+    onEachFeature: (f, layer) => {
+      const st = f.properties.state, c = gc[st]||0;
+      layer.bindTooltip(`<b>${f.properties.name}</b><br>${c} SPPG`, { sticky:true });
+      layer.on('click', () => { state.geoprov = state.geoprov===st ? '' : st; state.prov=''; syncControls(); render(); });
+    }
+  }).addTo(map);
+  choroLayer.bringToBack();
+}
+
+function drawPoints(rows) {
+  clusterLayer.clearLayers();
+  if (!state.pts) { if (map.hasLayer(clusterLayer)) map.removeLayer(clusterLayer); return; }
+  if (!map.hasLayer(clusterLayer)) map.addLayer(clusterLayer);
+  for (const r of rows) {
+    const flagged = r.flags.length>0;
+    const mk = L.circleMarker([r.lat, r.lng], {
+      radius:6, weight:1.4, color:'#fff', fillColor: flagged?'#f59e0b':'#14b8a6', fillOpacity:.95
+    });
+    const flagsHtml = r.flags.length ? '<br>'+r.flags.map(f=>`<span class="fl">⚑ ${FLAG_LABEL[f]}</span>`).join('') : '';
+    mk.bindPopup(
+      `<b>#${r.no} · ${r.kabkota}</b><br><span class="muted">${r.provinsi}</span><br>${r.alamat}` +
+      `<br><b>${r.yayasan==='-'?'<i>(tanpa yayasan)</i>':r.yayasan}</b>${flagsHtml}`
+    );
+    clusterLayer.addLayer(mk);
+  }
+}
+
+/* ---------- CHARTS ---------- */
+let chProv, chYay, chPulau;
+const gridColor = isDark ? '#242c38' : '#eef2f6';
+const tickColor = isDark ? '#9aa4b2' : '#6b7280';
+Chart.defaults.color = tickColor; Chart.defaults.font.family = 'system-ui,sans-serif';
+Chart.defaults.animation = false; // deterministic paint (works even if RAF is throttled in a background tab)
+// force a synchronous repaint when the tab becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) Object.values(Chart.instances).forEach(c => { try { c.resize(); c.draw(); } catch (e) {} });
+});
+
+function aggProv(rows){ const m={}; for(const r of rows) m[r.provinsi]=(m[r.provinsi]||0)+1;
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10); }
+function aggYay(rows){ const m={}; for(const r of rows){const k=r.yayasan==='-'?'(Tanpa Yayasan)':r.yayasan; m[k]=(m[k]||0)+1;}
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10); }
+
+function barCfg(labels,data,color){ return { type:'bar', data:{ labels, datasets:[{ data, backgroundColor:color, borderRadius:5, barThickness:14 }] },
+  options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false},
+    tooltip:{callbacks:{label:(c)=>' '+c.raw+' SPPG'}} },
+    scales:{ x:{ grid:{color:gridColor}, ticks:{precision:0} }, y:{ grid:{display:false}, ticks:{ font:{size:11}, callback:function(v){ const l=this.getLabelForValue(v); return l.length>26?l.slice(0,25)+'…':l; } } } } } }; }
+
+function renderCharts(rows){
+  const p=aggProv(rows), y=aggYay(rows);
+  const jawa=rows.filter(r=>r.pulau==='Jawa').length, lj=rows.length-jawa;
+  if(!chProv){
+    chProv=new Chart($('#chProv'), barCfg(p.map(x=>x[0]), p.map(x=>x[1]), '#0d9488'));
+    chYay=new Chart($('#chYay'), barCfg(y.map(x=>x[0]), y.map(x=>x[1]), '#6366f1'));
+    chPulau=new Chart($('#chPulau'), { type:'doughnut',
+      data:{ labels:['Jawa','Luar Jawa'], datasets:[{ data:[jawa,lj], backgroundColor:['#0d9488','#6366f1'], borderWidth:0 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins:{ legend:{position:'bottom'}, tooltip:{callbacks:{label:(c)=>` ${c.label}: ${c.raw} (${Math.round(c.raw/(jawa+lj)*100)}%)`}} } } });
+  } else {
+    chProv.data.labels=p.map(x=>x[0]); chProv.data.datasets[0].data=p.map(x=>x[1]); chProv.update();
+    chYay.data.labels=y.map(x=>x[0]); chYay.data.datasets[0].data=y.map(x=>x[1]); chYay.update();
+    chPulau.data.datasets[0].data=[jawa,lj]; chPulau.update();
+  }
+  // belt-and-suspenders: guarantee an immediate paint regardless of RAF/visibility state
+  [chProv, chYay, chPulau].forEach(c => { try { c.draw(); } catch (e) {} });
+}
+
+/* ---------- INSIGHTS (static overview from full data) ---------- */
+function renderInsights(){
+  const yay = D.yayasanList.slice(0,7);
+  $('#insYay').innerHTML = yay.map(y=>
+    `<div class="stat-row"><span>${y.yayasan}</span><span><b>${y.count}</b> <span class="muted">dapur · ${y.provinsi} prov · ${y.kabkota} kab</span></span></div>`).join('');
+
+  const m=D.meta;
+  const topP=D.provinceList[0], multi=D.yayasanList.filter(y=>y.provinsi>1).length;
+  $('#insGap').innerHTML = [
+    ['Sebaran di Pulau Jawa', `${Math.round(m.jawa/m.totalSPPG*100)}% (${m.jawa})`],
+    ['Sebaran di Luar Jawa', `${Math.round(m.luarJawa/m.totalSPPG*100)}% (${m.luarJawa})`],
+    ['Provinsi terpadat', `${topP.provinsi} (${topP.count})`],
+    ['Rata-rata SPPG / provinsi', (m.totalSPPG/m.totalProvinsi).toFixed(1)],
+    ['Yayasan lintas provinsi', `${multi} mitra`],
+  ].map(([l,v])=>`<div class="stat-row"><span>${l}</span><b>${v}</b></div>`).join('');
+  $('#uncCount').textContent = m.provinsiTanpaSPPGjumlah;
+  $('#insUnc').innerHTML = m.provinsiTanpaSPPG.map(p=>`<span class="pill warn">${p}</span>`).join('');
+
+  const f=D.meta.flagged;
+  const items=[['yayasan_kosong',f.yayasan_kosong,'Baris tanpa yayasan (diisi “-”)'],
+    ['alamat_minim',f.alamat_minim,'Alamat sangat singkat / hanya nama desa'],
+    ['alamat_luar_provinsi',f.alamat_luar_provinsi,'Alamat menyebut provinsi lain (indikasi salah tempel)']];
+  $('#insFlags').innerHTML = items.map(([k,n,d])=>
+    `<div class="stat-row" style="cursor:pointer" data-flagjump="${k}"><span>${d}</span><b class="fl" style="font-size:12px">${n}</b></div>`).join('');
+  document.querySelectorAll('[data-flagjump]').forEach(el=>el.onclick=()=>{
+    state.flag = state.flag===el.dataset.flagjump ? '' : el.dataset.flagjump; syncControls(); render();
+    document.querySelector('#tbl').scrollIntoView({behavior:'smooth'}); });
+}
+
+/* ---------- TABLE ---------- */
+const COLS=[['no','#'],['provinsi','Provinsi'],['kabkota','Kab/Kota'],['alamat','Alamat Dapur'],['yayasan','Yayasan'],['pulau','Wil.'],['flags','Catatan']];
+function renderTable(rows){
+  const s=[...rows].sort((a,b)=>{
+    let x=a[state.sortKey], y=b[state.sortKey];
+    if(state.sortKey==='flags'){ x=a.flags.length; y=b.flags.length; }
+    if(typeof x==='string'){ return x.localeCompare(y)*state.sortDir; }
+    return (x-y)*state.sortDir;
+  });
+  $('#tbl thead').innerHTML = '<tr>'+COLS.map(([k,l])=>`<th data-k="${k}">${l}${state.sortKey===k?(state.sortDir>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
+  $('#tbl tbody').innerHTML = s.map(r=>`<tr>
+    <td>${r.no}</td><td>${r.provinsi}</td><td>${r.kabkota}</td>
+    <td>${r.alamat}</td><td>${r.yayasan==='-'?'<i class="muted">—</i>':r.yayasan}</td>
+    <td><span class="badge ${r.pulau==='Jawa'?'j':'lj'}">${r.pulau==='Jawa'?'Jawa':'Luar'}</span></td>
+    <td>${r.flags.map(f=>`<span class="fl">⚑ ${FLAG_LABEL[f]}</span>`).join('')||'<span class="muted">—</span>'}</td>
+  </tr>`).join('');
+  $('#tblNote').textContent = `${rows.length} baris`;
+  document.querySelectorAll('#tbl th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(state.sortKey===k) state.sortDir*=-1; else {state.sortKey=k; state.sortDir=1;}
+    renderTable(filtered());
+  });
+}
+
+/* ---------- controls ---------- */
+function fillSelects(){
+  $('#fProv').innerHTML = '<option value="">Semua provinsi</option>' +
+    D.provinceList.slice().sort((a,b)=>a.provinsi.localeCompare(b.provinsi))
+      .map(p=>`<option value="${p.provinsi}">${p.provinsi} (${p.count})</option>`).join('');
+  $('#fYay').innerHTML = '<option value="">Semua yayasan</option>' +
+    D.yayasanList.map(y=>`<option value="${y.yayasan}">${y.yayasan} (${y.count})</option>`).join('');
+}
+function syncControls(){
+  $('#fProv').value=state.prov; $('#fYay').value=state.yay; $('#fQ').value=state.q;
+  $('#tglChoro').classList.toggle('active',state.choro);
+  $('#tglPts').classList.toggle('active',state.pts);
+  document.querySelectorAll('.chip.flag').forEach(c=>c.classList.toggle('active',c.dataset.flag===state.flag));
+  $('#mapNote').textContent = state.geoprov ? `filter peta: ${state.geoprov} (klik lagi untuk lepas)` : 'centroid kab/kota · warna provinsi = jumlah SPPG';
+}
+
+/* ---------- master render ---------- */
+function render(){
+  const rows=filtered();
+  renderKPI(rows); drawChoropleth(rows); drawPoints(rows); renderCharts(rows); renderTable(rows);
+}
+
+function exportCSV(){
+  const rows=filtered();
+  const cols=['no','provinsi','kabkota','alamat','yayasan','pulau','lat','lng','flags'];
+  const esc=v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const csv=[cols.join(',')].concat(rows.map(r=>cols.map(c=>esc(c==='flags'?r.flags.join('|'):r[c])).join(','))).join('\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`sppg_filtered_${rows.length}.csv`; a.click();
+}
+
+/* ---------- init ---------- */
+fillSelects(); initMap(); renderInsights();
+$('#fProv').onchange=e=>{state.prov=e.target.value; state.geoprov=''; render();};
+$('#fYay').onchange=e=>{state.yay=e.target.value; render();};
+$('#fQ').oninput=e=>{state.q=e.target.value; render();};
+document.querySelectorAll('.chip.flag').forEach(c=>c.onclick=()=>{state.flag=state.flag===c.dataset.flag?'':c.dataset.flag; syncControls(); render();});
+$('#tglChoro').onclick=()=>{state.choro=!state.choro; syncControls(); render();};
+$('#tglPts').onclick=()=>{state.pts=!state.pts; syncControls(); render();};
+$('#btnReset').onclick=()=>{Object.assign(state,{prov:'',yay:'',q:'',flag:'',geoprov:''}); syncControls(); render();};
+$('#btnExport').onclick=exportCSV;
+syncControls(); render();
+</script>
+</body>
+</html>
