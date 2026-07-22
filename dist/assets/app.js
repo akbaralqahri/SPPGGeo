@@ -117,8 +117,10 @@
     const allProvinceOptions = model.provinces.slice().sort((a, b) => a.name.localeCompare(b.name)).map((p) => option(p.name, `${p.name} · ${p.count} SPPG`)).join('');
     $('#compareA').innerHTML = allProvinceOptions;
     $('#compareB').innerHTML = allProvinceOptions;
+    $('#scenarioProvince').innerHTML = allProvinceOptions;
     $('#compareA').value = model.provinces[0]?.name || '';
     $('#compareB').value = model.provinces[1]?.name || '';
+    $('#scenarioProvince').value = model.provinces[0]?.name || '';
   }
 
   function bindFilters() {
@@ -324,6 +326,7 @@
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: colors.line }, ticks: { precision: 0 } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } } },
     });
     renderComparison();
+    renderScenario();
   }
 
   function renderGapList() {
@@ -333,7 +336,7 @@
       const level = province.gap >= 75 ? 'high' : province.gap >= 35 ? 'medium' : '';
       const label = province.gap >= 75 ? 'Prioritas tinggi' : province.gap >= 35 ? 'Perlu perhatian' : province.gapMode === 'proxy' ? 'Di atas proxy' : 'Gap rendah';
       const mode = province.gapMode === 'capacity' ? 'kapasitas vs target' : province.gapMode === 'weighted' ? 'bobot kebutuhan' : 'proxy setara provinsi';
-      return `<div class="gap-row"><div class="gap-region"><b>${e(province.name)}</b><small>${province.count} SPPG · ${province.kab} kab/kota · ${mode}</small></div><div class="gap-meter" title="Indeks gap ${province.gap}"><span style="width:${province.gap}%"></span></div><span class="gap-value">${province.gap}</span><span class="gap-status ${level}">${label}</span></div>`;
+      return `<div class="gap-row"><div class="gap-region"><b>${e(province.name)}</b><small>${province.count} SPPG · ${province.kab} kab/kota · ${mode}</small></div><div class="gap-meter" title="Indeks gap ${province.gap}"><span style="width:${province.gap}%"></span></div><span class="gap-value">${province.gap}</span><span class="gap-status ${level}">${label}</span><button type="button" class="province-open" data-province-detail="${e(province.name)}" aria-label="Buka profil ${e(province.name)}">Profil →</button></div>`;
     }).join('');
   }
 
@@ -346,6 +349,49 @@
       ['Populasi sasaran', p.context?.populationTarget ? S.fmt(p.context.populationTarget) : 'Belum tersedia'],
     ].map(([label, value]) => `<div class="comparison-metric"><span>${label}</span><b>${value}</b></div>`).join('')}</div>`;
     $('#comparisonResult').innerHTML = `${side(a)}<div class="comparison-divider"></div>${side(b)}`;
+  }
+
+  function renderScenario() {
+    const province = model.provinces.find((item) => item.name === $('#scenarioProvince').value) || model.provinces[0];
+    const additions = Math.max(0, Math.trunc(Number($('#scenarioKitchens').value) || 0));
+    const unitCapacity = Math.max(1, Math.trunc(Number($('#scenarioCapacity').value) || 3000));
+    const addedCapacity = additions * unitCapacity;
+    const projectedCapacity = province.capacity + addedCapacity;
+    const demand = province.context?.targetPortions || province.context?.populationTarget || 0;
+    const currentGap = demand ? Math.round(Math.max(0, (demand - province.capacity) / demand * 100)) : province.gap;
+    const projectedGap = demand
+      ? Math.round(Math.max(0, (demand - projectedCapacity) / demand * 100))
+      : Math.round(Math.max(0, (model.ideal - (province.count + additions)) / Math.max(1, model.ideal) * 100));
+    const metrics = [
+      ['SPPG saat ini', S.fmt(province.count)],
+      ['SPPG skenario', S.fmt(province.count + additions)],
+      ['Tambahan kapasitas', `${S.fmt(addedCapacity)} porsi`],
+      ['Gap: saat ini → skenario', `${currentGap} → ${projectedGap}`],
+    ];
+    $('#scenarioResult').innerHTML = metrics.map(([label, value]) => `<div><span>${e(label)}</span><b>${e(value)}</b></div>`).join('');
+    $('#scenarioMethod').textContent = demand
+      ? `Metode: proyeksi kapasitas ${S.fmt(projectedCapacity)} porsi/hari dibanding target ${S.fmt(demand)} porsi/hari pada data konteks ${province.name}. Tidak memperhitungkan lokasi mikro, waktu tempuh, atau utilisasi.`
+      : `Metode proxy: jumlah SPPG skenario dibanding rata-rata nasional snapshot (${model.ideal.toFixed(1)} SPPG/provinsi). Tambahkan target porsi melalui Admin agar simulasi memakai kebutuhan aktual.`;
+  }
+
+  function openProvinceDetail(name) {
+    const province = model.provinces.find((item) => item.name === name);
+    if (!province) return;
+    const provinceRows = rows.filter((row) => row.provinsi === name);
+    const districts = Object.entries(provinceRows.reduce((acc, row) => { acc[row.kabkota] = (acc[row.kabkota] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1]);
+    const topDistricts = districts.slice(0, 5).map(([district, count]) => `<li><span>${e(district)}</span><b>${S.fmt(count)}</b></li>`).join('') || '<li><span>Belum ada kab/kota tercatat</span><b>0</b></li>';
+    const context = province.context;
+    $('#drawerContent').innerHTML = `<div class="drawer-hero province"><span class="section-kicker">Profil provinsi</span><h2 id="drawerTitle">${e(province.name)}</h2><p>${province.count ? `${S.fmt(province.count)} SPPG pada ${S.fmt(province.kab)} kabupaten/kota` : 'Belum ada SPPG pada snapshot publik'}</p></div><div class="province-score"><div><small>INDEKS GAP</small><b>${province.gap}</b><span>${province.gapMode === 'proxy' ? 'proxy pemerataan' : 'berbasis konteks'}</span></div><div><small>STATUS OPERASIONAL</small><b>${S.fmt(province.operational)}</b><span>dari ${S.fmt(province.count)} SPPG</span></div></div><dl class="detail-list"><div><dt>Kapasitas tercatat</dt><dd>${province.capacityKnown ? `${S.fmt(province.capacity)} porsi/hari · ${province.capacityKnown} dapur terisi` : 'Belum tersedia'}</dd></div><div><dt>Populasi sasaran</dt><dd>${context?.populationTarget ? S.fmt(context.populationTarget) : 'Belum tersedia'}</dd></div><div><dt>Target porsi / hari</dt><dd>${context?.targetPortions ? S.fmt(context.targetPortions) : 'Belum tersedia'}</dd></div><div><dt>Baris bercatatan</dt><dd>${S.fmt(province.flagged)}</dd></div></dl><div class="province-ranking"><span class="section-kicker">Kab/kota terbanyak</span><ol>${topDistricts}</ol></div><button type="button" class="button primary province-dataset-button" data-province-dataset="${e(province.name)}">Lihat data ${e(province.name)}</button><p class="drawer-note">Indeks tinggi adalah sinyal prioritas analisis, bukan bukti otomatis kekurangan layanan. Validasi dengan data sasaran dan akses geografis.</p>`;
+    $('#detailDrawer').classList.add('open');
+    $('#drawerBackdrop').classList.add('open');
+    $('#detailDrawer').setAttribute('aria-hidden', 'false');
+    $('[data-province-dataset]', $('#drawerContent')).addEventListener('click', (event) => {
+      state.table.provinsi = event.currentTarget.dataset.provinceDataset;
+      $('#tableProvince').value = state.table.provinsi;
+      closeDrawer();
+      navigate('dataset');
+    });
+    $('#drawerClose').focus();
   }
 
   function renderQuality() {
@@ -457,6 +503,11 @@
       const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
       const link = document.createElement('a'); link.href = url; link.download = 'analisis_pemerataan_sppg.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
+    $('#printAnalysis').addEventListener('click', () => {
+      document.body.classList.add('print-report');
+      window.print();
+    });
+    addEventListener('afterprint', () => document.body.classList.remove('print-report'));
   }
 
   async function hydrateRemoteData() {
@@ -485,6 +536,11 @@
     $('#gapSort').addEventListener('change', renderGapList);
     $('#compareA').addEventListener('change', renderComparison);
     $('#compareB').addEventListener('change', renderComparison);
+    $('#scenarioForm').addEventListener('input', renderScenario);
+    $('#gapList').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-province-detail]');
+      if (button) openProvinceDetail(button.dataset.provinceDetail);
+    });
     $('#filterDuplicates').addEventListener('click', () => openDatasetFlag('duplikat_persis'));
     $('#themeToggle').addEventListener('click', () => setTimeout(() => {
       updateMapTiles();

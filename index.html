@@ -9,7 +9,10 @@
   <meta property="og:locale" content="id_ID" />
   <meta property="og:title" content="SPPG Insight Indonesia" />
   <meta property="og:description" content="Melihat sebaran, pemerataan, dan kesiapan data SPPG dalam satu portal." />
-  <meta property="og:image" content="/og.png" />
+  <meta property="og:image" content="/og-v3.png" />
+  <meta property="og:image:width" content="1536" />
+  <meta property="og:image:height" content="1024" />
+  <meta property="og:image:alt" content="SPPG Insight Indonesia — Data tepercaya. Keputusan lebih terarah." />
   <meta name="twitter:card" content="summary_large_image" />
   <title>SPPG Insight Indonesia</title>
   <link rel="manifest" href="manifest.webmanifest" />
@@ -131,7 +134,7 @@
     <section class="view" id="view-pemerataan" data-view="pemerataan" hidden>
       <div class="page-intro">
         <div><p class="eyebrow"><span></span> Analitik wilayah</p><h1>Pemerataan dan demand gap</h1><p>Bedakan antara banyaknya dapur, jangkauan wilayah, dan kecukupan kapasitas agar keputusan tidak berhenti pada jumlah absolut.</p></div>
-        <button type="button" class="button primary" id="downloadAnalysis">Unduh ringkasan CSV</button>
+        <div class="page-intro-actions"><button type="button" class="button primary" id="downloadAnalysis">Unduh ringkasan CSV</button><button type="button" class="button inverse" id="printAnalysis">Cetak laporan eksekutif</button></div>
       </div>
       <div class="content-shell page-content">
         <div class="method-banner"><b>Indeks pemerataan saat ini adalah proxy.</b><span>Snapshot belum memuat populasi sasaran, sekolah, kemiskinan, stunting, atau kapasitas seluruh dapur. Nilai akan otomatis menjadi demand gap berbobot setelah data konteks ditambahkan melalui Admin.</span></div>
@@ -152,6 +155,18 @@
             <label>Provinsi pertama<select id="compareA"></select></label><span>versus</span><label>Provinsi kedua<select id="compareB"></select></label>
           </div>
           <div id="comparisonResult" class="comparison-result"></div>
+        </section>
+        <section class="panel scenario-panel">
+          <div class="panel-head"><div><span class="section-kicker">What-if planner</span><h2>Simulasi penambahan dapur</h2></div><span class="scenario-label">Simulasi, bukan target resmi</span></div>
+          <div class="scenario-layout">
+            <form id="scenarioForm" class="scenario-controls">
+              <label>Provinsi<select id="scenarioProvince"></select></label>
+              <label>Tambahan dapur<input type="number" id="scenarioKitchens" min="0" max="1000" step="1" value="10" /></label>
+              <label>Kapasitas per dapur / hari<input type="number" id="scenarioCapacity" min="1" max="100000" step="100" value="3000" /></label>
+            </form>
+            <div id="scenarioResult" class="scenario-result"></div>
+          </div>
+          <p class="scenario-method" id="scenarioMethod"></p>
         </section>
         <section class="context-callout">
           <div><span class="section-kicker">Naikkan kualitas keputusan</span><h2>Lengkapi lima indikator demand</h2><p>Populasi sasaran, jumlah sekolah, prevalensi stunting, kemiskinan, dan kapasitas porsi akan mengubah dashboard ini dari peta sebaran menjadi alat perencanaan.</p></div>

@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { build as bundleJavaScript } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -171,11 +172,15 @@ for (const r of rows) {
     .digest('hex').slice(0, 12);
   r.locationAccuracy = 'centroid_kabkota';
   r.statusOperasional = 'belum_diverifikasi';
+  r.workflowStatus = 'published';
   r.kapasitasPorsi = null;
   r.penerimaManfaat = null;
   r.tanggalBerdiri = null;
   r.lastVerifiedAt = null;
   r.catatanOperasional = null;
+  r.assignedTo = null;
+  r.reviewNotes = null;
+  r.version = 1;
 
   // data-quality flags
   const flags = [];
@@ -300,7 +305,7 @@ const config = {
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
   dataMode: process.env.SPPG_DATA_MODE || 'auto',
-  siteUrl: process.env.SITE_URL || '',
+  siteUrl: process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : ''),
 };
 fs.writeFileSync(P('dist', 'config.js'), 'window.SPPG_CONFIG = ' + JSON.stringify(config) + ';\n');
 
@@ -308,19 +313,41 @@ fs.writeFileSync(P('dist', 'config.js'), 'window.SPPG_CONFIG = ' + JSON.stringif
 // are deliberately not copied, so Vercel can publish `dist` safely.
 fs.mkdirSync(P('dist', 'assets'), { recursive: true });
 fs.mkdirSync(P('dist', 'vendor'), { recursive: true });
-for (const name of ['styles.css', 'app.js', 'admin.js', 'shared.js']) {
+for (const name of ['styles.css', 'app.js', 'admin.js', 'shared.js', 'importer.js']) {
   fs.copyFileSync(P('src', name), P('dist', 'assets', name));
 }
 for (const name of ['leaflet.css', 'MarkerCluster.css', 'MarkerCluster.Default.css', 'leaflet.js', 'leaflet.markercluster.js', 'chart.umd.min.js']) {
   fs.copyFileSync(P('vendor', name), P('dist', 'vendor', name));
 }
+await bundleJavaScript({
+  entryPoints: [P('src', 'xlsx-reader.js')],
+  bundle: true,
+  minify: true,
+  format: 'iife',
+  platform: 'browser',
+  target: ['es2020'],
+  outfile: P('dist', 'vendor', 'xlsx-reader.js'),
+});
 for (const name of ['index.html', 'admin.html']) fs.copyFileSync(P(name), P('dist', name));
+if (config.siteUrl) {
+  try {
+    const canonical = new URL(config.siteUrl);
+    if (!['http:', 'https:'].includes(canonical.protocol)) throw new Error('unsupported protocol');
+    canonical.pathname = canonical.pathname.replace(/\/$/, '') + '/';
+    let html = fs.readFileSync(P('dist', 'index.html'), 'utf8');
+    html = html.replace('<meta property="og:type" content="website" />', `<meta property="og:type" content="website" />\n  <meta property="og:url" content="${canonical.href}" />\n  <link rel="canonical" href="${canonical.href}" />`);
+    html = html.replace('content="/og-v3.png"', `content="${new URL('og-v3.png', canonical).href}"`);
+    fs.writeFileSync(P('dist', 'index.html'), html);
+  } catch { console.warn('SITE_URL diabaikan karena bukan URL http(s) yang valid.'); }
+}
 for (const name of ['manifest.webmanifest', 'robots.txt']) {
   const source = P('public', name);
   if (fs.existsSync(source)) fs.copyFileSync(source, P('dist', name));
 }
-const ogSource = P('public', 'og.png');
-if (fs.existsSync(ogSource)) fs.copyFileSync(ogSource, P('dist', 'og.png'));
+for (const name of ['og.png', 'og-v3.png']) {
+  const source = P('public', name);
+  if (fs.existsSync(source)) fs.copyFileSync(source, P('dist', name));
+}
 
 console.log('Rows:', rows.length, '| Provinsi:', provinceList.length, '| Kab/kota:', kabkotaList.length, '| Yayasan:', meta.totalYayasan);
 console.log('Missing coords:', missingCoords.size);

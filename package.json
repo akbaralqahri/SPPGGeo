@@ -1,6 +1,6 @@
 {
   "name": "sppg-geospatial-dashboard",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Portal pemerataan, kualitas data, dan operasional SPPG Indonesia",
   "type": "module",
@@ -11,5 +11,11 @@
     "validate": "node scripts/validate.mjs",
     "all": "npm run build && node scripts/validate.mjs"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "read-excel-file": "9.3.4"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.6"
+  }
 }

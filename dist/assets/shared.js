@@ -58,6 +58,15 @@
       tanggalBerdiri: row.tanggalBerdiri || row.tanggal_berdiri || null,
       lastVerifiedAt: row.lastVerifiedAt || row.last_verified_at || null,
       catatanOperasional: row.catatanOperasional || row.catatan_operasional || null,
+      workflowStatus: row.workflowStatus || row.workflow_status || 'published',
+      assignedTo: row.assignedTo || row.assigned_to || null,
+      reviewNotes: row.reviewNotes || row.review_notes || null,
+      verifiedBy: row.verifiedBy || row.verified_by || null,
+      verifiedAt: row.verifiedAt || row.verified_at || null,
+      approvedBy: row.approvedBy || row.approved_by || null,
+      approvedAt: row.approvedAt || row.approved_at || null,
+      publishedAt: row.publishedAt || row.published_at || null,
+      version: Number(row.version || 1),
     };
   }
 
@@ -191,6 +200,15 @@
       tanggal_berdiri: row.tanggalBerdiri,
       last_verified_at: row.lastVerifiedAt,
       catatan_operasional: row.catatanOperasional,
+      workflow_status: row.workflowStatus || 'published',
+      assigned_to: row.assignedTo || null,
+      review_notes: row.reviewNotes || null,
+      verified_by: row.verifiedBy || null,
+      verified_at: row.verifiedAt || null,
+      approved_by: row.approvedBy || null,
+      approved_at: row.approvedAt || null,
+      published_at: row.publishedAt || null,
+      version: row.version || 1,
     };
   }
 

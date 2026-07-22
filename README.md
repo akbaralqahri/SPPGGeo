@@ -1,6 +1,6 @@
 # SPPG Insight Indonesia
 
-Portal pemerataan, kualitas data, dan operasional SPPG Indonesia. Versi 2 tetap
+Portal pemerataan, kualitas data, dan operasional SPPG Indonesia. Versi 3 tetap
 dapat berjalan sebagai snapshot statis, tetapi bisa dihubungkan ke Supabase
 untuk status operasional, kapasitas, penerima manfaat, koordinat presisi, data
 konteks provinsi, autentikasi admin, dan audit perubahan.
@@ -21,7 +21,9 @@ konteks provinsi, autentikasi admin, dan audit perubahan.
 - Konsentrasi provinsi, share top 3, dan provinsi tanpa cakupan.
 - Indeks gap proxy ketika data kebutuhan belum tersedia.
 - Demand gap berbobot otomatis ketika populasi sasaran atau target porsi diisi.
-- Perbandingan dua provinsi dan ekspor ringkasan analitik.
+- Profil mendalam setiap provinsi, perbandingan wilayah, dan ekspor analitik.
+- Simulasi penambahan dapur dengan formula dan batas metodologi yang terlihat.
+- Laporan eksekutif siap cetak dari tampilan pemerataan.
 - Label metodologi yang membedakan proxy dari metrik berbobot.
 
 ### Kualitas data
@@ -34,12 +36,17 @@ konteks provinsi, autentikasi admin, dan audit perubahan.
 - Catatan bahwa koordinat snapshot adalah centroid kabupaten/kota, bukan lokasi
   presisi dapur.
 
-### Portal admin opsional
+### Control Room admin opsional
 
 - Login email/password melalui Supabase Auth.
-- Otorisasi admin menggunakan Row Level Security.
+- Lima role terpisah: viewer, operator, verifier, approver, dan super admin.
+- Workflow draft → review → verified → published, lengkap dengan revision dan archive.
+- Import Center untuk CSV/XLSX: pemetaan kolom, validasi, deteksi perubahan,
+  preview, serta riwayat batch sebelum commit.
 - Pembaruan status, kapasitas, penerima manfaat, tanggal berdiri, lokasi presisi,
   dan catatan verifikasi.
+- Review Queue, komentar internal, bukti JPG/PNG/WebP/PDF, serta audit field-level.
+- Team & Role untuk mengatur kewenangan tanpa mencampur akses publik dan internal.
 - Data konteks per provinsi: populasi sasaran, target porsi, sekolah, stunting,
   kemiskinan, periode, dan sumber.
 - Audit perubahan tersimpan di `sppg_audit_log`.
@@ -69,13 +76,21 @@ Perintah lain:
 ## Mengaktifkan backend
 
 1. Buat project Supabase.
-2. Jalankan `supabase/schema.sql` di SQL Editor.
+2. Untuk instalasi baru, jalankan `supabase/schema.sql` di SQL Editor. Untuk
+   database versi 2, terapkan `supabase/migrations/202607220001_operational_intelligence.sql`.
 3. Buat pengguna melalui Authentication > Users.
 4. Tambahkan UUID pengguna tersebut ke `public.admin_users` dengan contoh
-   `INSERT` pada bagian akhir schema.
+   `INSERT` pada bagian akhir schema dan role `super_admin`. Pada database versi
+   2, perbarui admin lama setelah migrasi dengan
+   `UPDATE public.admin_users SET role = 'super_admin', active = true WHERE user_id = '<UUID>';`.
 5. Salin `.env.example` menjadi konfigurasi lingkungan lokal atau isi variabel
    yang sama di Vercel.
-6. Build ulang, masuk ke `/admin`, lalu pilih **Sinkronkan snapshot awal**.
+6. Build ulang, masuk ke `/admin` sebagai super admin, lalu pilih
+   **Sinkronkan snapshot**.
+
+Perubahan hasil import tidak langsung tampil ke publik. Baris baru masuk sebagai
+`draft`, sementara baris yang berubah masuk ke `review`; data baru terlihat di
+dashboard publik setelah verifier dan approver menyelesaikan quality gate.
 
 `SUPABASE_ANON_KEY` memang dikirim ke browser. Keamanan data tulis tidak
 bergantung pada kerahasiaan key tersebut, tetapi pada Auth dan kebijakan RLS di
@@ -96,6 +111,16 @@ Hubungkan repository ke Vercel lalu isi variabel dari `.env.example`. Tanpa
 Supabase, deployment tetap berfungsi penuh dalam mode snapshot publik; halaman
 admin menampilkan petunjuk aktivasi backend.
 
+Checklist produksi:
+
+1. Isi `DATASET_AS_OF`, `DATA_SOURCE_NAME`, `DATA_SOURCE_URL`, dan `SITE_URL`.
+2. Aktifkan Supabase RLS dengan schema di atas dan buat akun super admin pertama.
+3. Jalankan `npm run all` dan pastikan validasi selesai tanpa error.
+4. Import project ke Vercel, isi environment variables untuk Production dan
+   Preview, lalu deploy.
+5. Uji `/`, `/admin`, login, upload bukti, workflow publish, dan fallback
+   snapshot dari deployment Preview sebelum mempromosikan ke Production.
+
 ## Struktur penting
 
 ```text
@@ -105,6 +130,7 @@ src/                       CSS dan JavaScript sumber
 data/                      tabel mentah dan dataset bersih
 scripts/build.mjs          pipeline data + output deploy
 supabase/schema.sql        database, RLS, dan audit
+supabase/migrations/       migrasi upgrade database
 dist/                      output produksi untuk Vercel
 vercel.json                konfigurasi hosting
 ```

@@ -6,8 +6,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mustExist = [
   'dist/index.html', 'dist/admin.html', 'dist/data.js', 'dist/config.js',
   'dist/assets/app.js', 'dist/assets/admin.js', 'dist/assets/shared.js',
-  'dist/assets/styles.css', 'dist/vendor/leaflet.js', 'dist/vendor/chart.umd.min.js',
-  'dist/og.png', 'dist/manifest.webmanifest', 'dist/robots.txt',
+  'dist/assets/importer.js', 'dist/assets/styles.css', 'dist/vendor/leaflet.js',
+  'dist/vendor/chart.umd.min.js', 'dist/vendor/xlsx-reader.js',
+  'dist/og.png', 'dist/og-v3.png', 'dist/manifest.webmanifest', 'dist/robots.txt',
 ];
 const failures = [];
 for (const file of mustExist) if (!fs.existsSync(path.join(root, file))) failures.push(`missing ${file}`);

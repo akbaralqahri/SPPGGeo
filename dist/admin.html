@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
   <meta name="theme-color" content="#0b3b36" />
-  <title>Admin · SPPG Insight Indonesia</title>
+  <title>Control Room · SPPG Insight Indonesia</title>
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body class="admin-body">
   <a class="skip-link" href="#adminMain">Lewati ke konten utama</a>
   <header class="app-header">
-    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"><span></span></span><span><b>SPPG Insight</b><small>Portal Admin</small></span></a>
-    <div class="header-actions"><a class="icon-button admin-link" href="index.html">Lihat dashboard</a><button type="button" class="icon-button" id="themeToggle" aria-label="Ganti tema">◐</button></div>
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"><span></span></span><span><b>SPPG Insight</b><small>Control Room</small></span></a>
+    <div class="header-actions"><span class="role-pill" id="headerRole" hidden></span><a class="icon-button admin-link" href="index.html">Dashboard publik</a><button type="button" class="icon-button" id="themeToggle" aria-label="Ganti tema">◐</button></div>
   </header>
 
   <main id="adminMain" class="admin-main">
     <section class="admin-login panel" id="adminLogin">
       <span class="admin-lock" aria-hidden="true">●</span>
       <p class="eyebrow"><span></span> Area terbatas</p>
-      <h1>Masuk untuk mengelola data operasional</h1>
-      <p>Portal publik tetap menggunakan snapshot lokal sampai backend dikonfigurasi. Admin memakai Supabase Auth dan kebijakan Row Level Security.</p>
+      <h1>Masuk ke control room SPPG</h1>
+      <p>Impor data, verifikasi perubahan, lengkapi bukti, dan publikasikan informasi melalui workflow yang dapat diaudit.</p>
       <div class="config-warning" id="configWarning" hidden><b>Backend belum diaktifkan.</b><span>Isi variabel lingkungan Supabase di Vercel untuk mengaktifkan login dan penyimpanan persisten.</span></div>
       <form id="loginForm" class="login-form">
         <label>Email<input type="email" id="loginEmail" autocomplete="username" required placeholder="admin@organisasi.id" /></label>
@@ -28,56 +28,121 @@
         <button type="submit" class="button primary">Masuk</button>
         <p class="form-message" id="loginMessage" role="alert"></p>
       </form>
-      <details><summary>Langkah aktivasi backend</summary><ol><li>Buat project Supabase dan jalankan <code>supabase/schema.sql</code>.</li><li>Buat akun admin, lalu tambahkan ID pengguna ke tabel <code>admin_users</code>.</li><li>Isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> di Vercel.</li><li>Deploy ulang dan sinkronkan snapshot awal dari halaman ini.</li></ol></details>
+      <details><summary>Langkah aktivasi backend</summary><ol><li>Buat project Supabase dan jalankan <code>supabase/schema.sql</code>.</li><li>Buat akun pertama dan daftarkan sebagai <code>super_admin</code>.</li><li>Isi konfigurasi Supabase di Vercel.</li><li>Deploy ulang, lalu sinkronkan snapshot awal.</li></ol></details>
     </section>
 
     <section id="adminWorkspace" class="admin-workspace" hidden>
-      <div class="admin-welcome"><div><p class="eyebrow"><span></span> Ruang kerja operasional</p><h1>Kelola status dan kapasitas SPPG</h1><p id="adminIdentity"></p></div><div class="admin-actions"><button type="button" class="button secondary" id="seedData">Sinkronkan snapshot awal</button><button type="button" class="button secondary" id="logoutButton">Keluar</button></div></div>
-      <section class="kpi-grid four" id="adminKpis"></section>
-      <div class="admin-grid">
-        <aside class="panel admin-record-list">
-          <div class="panel-head"><div><span class="section-kicker">315 lokasi</span><h2>Pilih data</h2></div></div>
-          <label class="admin-search">Cari<input type="search" id="adminSearch" placeholder="Wilayah atau yayasan" /></label>
-          <div id="adminRecords" class="admin-records"></div>
-        </aside>
-        <section class="panel admin-editor">
-          <div class="empty-editor" id="emptyEditor"><span>◎</span><h2>Pilih satu SPPG</h2><p>Data identitas tetap mengikuti sumber; lengkapi status, kapasitas, penerima manfaat, dan hasil verifikasi di sini.</p></div>
-          <form id="recordForm" hidden>
-            <div class="editor-heading"><div><span class="section-kicker" id="editorNumber">Data SPPG</span><h2 id="editorTitle">—</h2><p id="editorAddress"></p></div><span class="status-badge" id="editorFlag">Belum diverifikasi</span></div>
-            <div class="editor-grid">
-              <label>Status operasional<select id="editStatus"><option value="belum_diverifikasi">Belum diverifikasi</option><option value="persiapan">Persiapan</option><option value="operasional">Operasional</option><option value="nonaktif">Nonaktif</option></select></label>
-              <label>Tanggal berdiri<input type="date" id="editEstablished" /></label>
-              <label>Kapasitas porsi / hari<input type="number" id="editCapacity" min="0" step="1" inputmode="numeric" /></label>
-              <label>Penerima manfaat<input type="number" id="editBeneficiaries" min="0" step="1" inputmode="numeric" /></label>
-              <label>Lintang presisi<input type="number" id="editLat" step="0.000001" min="-11" max="6" /></label>
-              <label>Bujur presisi<input type="number" id="editLng" step="0.000001" min="95" max="141.5" /></label>
-              <label class="full-field">Catatan operasional<textarea id="editNotes" rows="4" maxlength="1000" placeholder="Catatan verifikasi, kendala, atau tindak lanjut"></textarea></label>
-            </div>
-            <div class="editor-actions"><span id="saveMessage" class="form-message" role="status"></span><button type="submit" class="button primary">Simpan perubahan</button></div>
-          </form>
-        </section>
+      <div class="admin-welcome">
+        <div><p class="eyebrow"><span></span> Operational intelligence</p><h1>Control room data SPPG</h1><p id="adminIdentity"></p></div>
+        <div class="admin-actions"><button type="button" class="button secondary" id="seedData">Sinkronkan snapshot</button><button type="button" class="button secondary" id="logoutButton">Keluar</button></div>
       </div>
-      <section class="panel context-admin-panel">
-        <div class="panel-head"><div><span class="section-kicker">Data konteks provinsi</span><h2>Aktifkan demand gap berbobot</h2></div><span class="dataset-count" id="contextCoverage">0 / 38 lengkap</span></div>
-        <form id="contextForm" class="context-admin-form">
-          <label>Provinsi<select id="contextProvince"></select></label>
-          <label>Populasi sasaran<input type="number" id="contextPopulation" min="0" step="1" /></label>
-          <label>Target porsi / hari<input type="number" id="contextTarget" min="0" step="1" /></label>
-          <label>Jumlah sekolah<input type="number" id="contextSchools" min="0" step="1" /></label>
-          <label>Stunting (%)<input type="number" id="contextStunting" min="0" max="100" step="0.01" /></label>
-          <label>Kemiskinan (%)<input type="number" id="contextPoverty" min="0" max="100" step="0.01" /></label>
-          <label>Periode<input type="text" id="contextPeriod" maxlength="50" placeholder="mis. 2025" /></label>
-          <label>Sumber<input type="text" id="contextSource" maxlength="200" placeholder="Nama publikasi / instansi" /></label>
-          <label class="context-url">URL sumber<input type="url" id="contextUrl" maxlength="500" placeholder="https://…" /></label>
-          <div class="context-form-action"><span id="contextMessage" class="form-message"></span><button type="submit" class="button primary">Simpan konteks</button></div>
-        </form>
+
+      <nav class="admin-tabs" aria-label="Navigasi control room">
+        <button type="button" class="active" data-admin-view-target="records"><span>01</span>Data SPPG</button>
+        <button type="button" data-admin-view-target="import"><span>02</span>Import Center</button>
+        <button type="button" data-admin-view-target="review"><span>03</span>Review Queue <i id="reviewBadge">0</i></button>
+        <button type="button" data-admin-view-target="audit"><span>04</span>Audit</button>
+        <button type="button" data-admin-view-target="context"><span>05</span>Konteks</button>
+        <button type="button" data-admin-view-target="team"><span>06</span>Tim & Role</button>
+      </nav>
+
+      <section class="admin-view active" data-admin-view="records">
+        <section class="kpi-grid four" id="adminKpis"></section>
+        <div class="admin-grid">
+          <aside class="panel admin-record-list">
+            <div class="panel-head"><div><span class="section-kicker" id="recordListCount">Data lokasi</span><h2>Pilih SPPG</h2></div><button type="button" class="text-button" id="refreshRecords">Refresh</button></div>
+            <div class="record-filter-stack">
+              <label>Cari<input type="search" id="adminSearch" placeholder="Wilayah atau yayasan" /></label>
+              <label>Workflow<select id="recordWorkflowFilter"><option value="">Semua status</option><option value="draft">Draft</option><option value="review">Menunggu review</option><option value="revision">Perlu revisi</option><option value="verified">Terverifikasi</option><option value="published">Dipublikasikan</option><option value="archived">Diarsipkan</option></select></label>
+            </div>
+            <div id="adminRecords" class="admin-records"></div>
+          </aside>
+          <section class="panel admin-editor">
+            <div class="empty-editor" id="emptyEditor"><span>◎</span><h2>Pilih satu SPPG</h2><p>Kelola data operasional, workflow verifikasi, komentar, dan bukti pendukung dari satu tempat.</p></div>
+            <div id="recordEditor" hidden>
+              <div class="editor-heading"><div><span class="section-kicker" id="editorNumber">Data SPPG</span><h2 id="editorTitle">—</h2><p id="editorAddress"></p></div><span class="workflow-badge" id="editorWorkflow">Draft</span></div>
+              <div class="workflow-action-bar"><div><small>TAHAP BERIKUTNYA</small><p id="workflowHint">Simpan data lalu kirim untuk ditinjau.</p></div><div id="workflowActions"></div></div>
+              <form id="recordForm">
+                <div class="editor-grid">
+                  <label>Status operasional<select id="editStatus"><option value="belum_diverifikasi">Belum diverifikasi</option><option value="persiapan">Persiapan</option><option value="operasional">Operasional</option><option value="nonaktif">Nonaktif</option></select></label>
+                  <label>Tanggal berdiri<input type="date" id="editEstablished" /></label>
+                  <label>Kapasitas porsi / hari<input type="number" id="editCapacity" min="0" step="1" inputmode="numeric" /></label>
+                  <label>Penerima manfaat<input type="number" id="editBeneficiaries" min="0" step="1" inputmode="numeric" /></label>
+                  <label>Lintang presisi<input type="number" id="editLat" step="0.000001" min="-11" max="6" /></label>
+                  <label>Bujur presisi<input type="number" id="editLng" step="0.000001" min="95" max="142" /></label>
+                  <label class="full-field">Catatan operasional<textarea id="editNotes" rows="3" maxlength="1000" placeholder="Kendala, tindak lanjut, atau catatan lapangan"></textarea></label>
+                  <label class="full-field">Catatan review<textarea id="editReviewNotes" rows="3" maxlength="2000" placeholder="Alasan revisi atau keputusan verifikasi"></textarea></label>
+                </div>
+                <div class="editor-actions"><span id="saveMessage" class="form-message" role="status"></span><button type="submit" class="button primary">Simpan perubahan</button></div>
+              </form>
+
+              <div class="record-collab-grid">
+                <section class="record-subpanel">
+                  <div class="subpanel-head"><div><span class="section-kicker">Diskusi internal</span><h3>Komentar</h3></div><span id="commentCount">0</span></div>
+                  <div id="commentList" class="comment-list"></div>
+                  <form id="commentForm" class="compact-form"><textarea id="commentBody" rows="2" maxlength="2000" placeholder="Tulis catatan untuk tim…" required></textarea><button type="submit" class="button secondary">Kirim</button></form>
+                </section>
+                <section class="record-subpanel">
+                  <div class="subpanel-head"><div><span class="section-kicker">Bukti verifikasi</span><h3>Lampiran</h3></div><span id="evidenceCount">0</span></div>
+                  <div id="evidenceList" class="evidence-list"></div>
+                  <form id="evidenceForm" class="compact-form"><input type="file" id="evidenceFile" accept="image/jpeg,image/png,image/webp,application/pdf" required /><input type="text" id="evidenceNote" maxlength="500" placeholder="Keterangan bukti" /><button type="submit" class="button secondary">Unggah bukti</button><small>Maksimal 5 MB · JPG, PNG, WebP, atau PDF</small></form>
+                </section>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="admin-view" data-admin-view="import" hidden>
+        <div class="admin-section-intro"><div><span class="section-kicker">Data Trust Center</span><h2>Impor tanpa menimpa data secara membabi buta</h2><p>Unggah CSV atau Excel, petakan kolom, tinjau validasi dan perubahan, lalu commit hanya baris yang aman.</p></div><button type="button" class="button secondary" id="downloadTemplate">Unduh template CSV</button></div>
+        <section class="import-layout">
+          <article class="panel import-main-panel">
+            <label class="upload-dropzone" id="uploadDropzone"><input type="file" id="importFile" accept=".csv,.xlsx" /><span class="upload-icon">⇧</span><b>Letakkan file di sini atau pilih file</b><small>CSV atau XLSX · diproses langsung di browser</small></label>
+            <div id="importFileMeta" class="import-file-meta" hidden></div>
+            <div id="mappingPanel" class="mapping-panel" hidden><div class="panel-head compact"><div><span class="section-kicker">Pemetaan kolom</span><h2>Pastikan struktur terbaca benar</h2></div><button type="button" class="text-button" id="reanalyzeImport">Analisis ulang</button></div><div id="mappingFields" class="mapping-fields"></div></div>
+            <div id="importResults" hidden>
+              <div class="import-stats" id="importStats"></div>
+              <div class="import-filter-row"><button type="button" class="active" data-import-filter="all">Semua</button><button type="button" data-import-filter="added">Baru</button><button type="button" data-import-filter="changed">Berubah</button><button type="button" data-import-filter="invalid">Invalid</button><button type="button" data-import-filter="unchanged">Sama</button></div>
+              <div class="import-preview-wrap"><table id="importPreview"><thead><tr><th>Baris</th><th>Status</th><th>Wilayah</th><th>Alamat/Yayasan</th><th>Perubahan & validasi</th></tr></thead><tbody></tbody></table></div>
+              <div class="import-commit-bar"><div><b id="commitSummary">Belum ada data siap commit</b><small>Baris invalid tidak pernah dimasukkan.</small></div><button type="button" class="button primary" id="commitImport">Commit data aman</button></div>
+            </div>
+          </article>
+          <aside class="panel import-history-panel"><div class="panel-head compact"><div><span class="section-kicker">Riwayat</span><h2>Batch terakhir</h2></div></div><div id="importHistory" class="import-history"></div></aside>
+        </section>
+      </section>
+
+      <section class="admin-view" data-admin-view="review" hidden>
+        <div class="admin-section-intro"><div><span class="section-kicker">Quality gate</span><h2>Antrean review dan persetujuan</h2><p>Prioritaskan data yang menunggu keputusan, memiliki catatan kualitas, atau belum dilengkapi bukti.</p></div><button type="button" class="button secondary" id="refreshReview">Refresh antrean</button></div>
+        <section class="kpi-grid four" id="reviewKpis"></section>
+        <div class="review-toolbar"><button type="button" class="active" data-review-filter="actionable">Perlu tindakan</button><button type="button" data-review-filter="review">Menunggu review</button><button type="button" data-review-filter="revision">Perlu revisi</button><button type="button" data-review-filter="verified">Siap publish</button><button type="button" data-review-filter="quality">Ada catatan kualitas</button></div>
+        <div id="reviewQueue" class="review-queue"></div>
+      </section>
+
+      <section class="admin-view" data-admin-view="audit" hidden>
+        <div class="admin-section-intro"><div><span class="section-kicker">Jejak perubahan</span><h2>Audit yang dapat ditelusuri</h2><p>Lihat siapa mengubah data, kapan perubahan dilakukan, dan field apa yang berubah.</p></div><button type="button" class="button secondary" id="refreshAudit">Refresh audit</button></div>
+        <div class="audit-layout"><aside class="panel audit-summary" id="auditSummary"></aside><section class="panel"><div id="auditTimeline" class="audit-timeline"></div></section></div>
+      </section>
+
+      <section class="admin-view" data-admin-view="context" hidden>
+        <div class="admin-section-intro"><div><span class="section-kicker">Demand context</span><h2>Aktifkan demand gap berbobot</h2><p>Lengkapi indikator kebutuhan dan sumber agar analisis tidak bergantung pada jumlah SPPG saja.</p></div><span class="dataset-count" id="contextCoverage">0 / 38 lengkap</span></div>
+        <section class="panel context-admin-panel"><form id="contextForm" class="context-admin-form">
+          <label>Provinsi<select id="contextProvince"></select></label><label>Populasi sasaran<input type="number" id="contextPopulation" min="0" step="1" /></label><label>Target porsi / hari<input type="number" id="contextTarget" min="0" step="1" /></label><label>Jumlah sekolah<input type="number" id="contextSchools" min="0" step="1" /></label><label>Stunting (%)<input type="number" id="contextStunting" min="0" max="100" step="0.01" /></label><label>Kemiskinan (%)<input type="number" id="contextPoverty" min="0" max="100" step="0.01" /></label><label>Periode<input type="text" id="contextPeriod" maxlength="50" placeholder="mis. 2026" /></label><label>Sumber<input type="text" id="contextSource" maxlength="200" placeholder="Nama publikasi / instansi" /></label><label class="context-url">URL sumber<input type="url" id="contextUrl" maxlength="500" placeholder="https://…" /></label><div class="context-form-action"><span id="contextMessage" class="form-message"></span><button type="submit" class="button primary">Simpan konteks</button></div>
+        </form></section>
+      </section>
+
+      <section class="admin-view" data-admin-view="team" hidden>
+        <div class="admin-section-intro"><div><span class="section-kicker">Access control</span><h2>Tim dan batas kewenangan</h2><p>Role menentukan siapa yang boleh mengedit, memverifikasi, menyetujui, dan mempublikasikan data.</p></div><span class="role-pill" id="teamAccessNote">Read only</span></div>
+        <div class="role-explainer"><div><b>Viewer</b><span>Melihat data internal</span></div><div><b>Operator</b><span>Edit dan kirim review</span></div><div><b>Verifier</b><span>Verifikasi atau revisi</span></div><div><b>Approver</b><span>Publikasi data</span></div><div><b>Super Admin</b><span>Seluruh akses dan role</span></div></div>
+        <section class="panel"><div class="panel-head"><div><span class="section-kicker">Anggota aktif</span><h2>Daftar tim</h2></div><span class="dataset-count" id="teamCount">0 anggota</span></div><div id="teamList" class="team-list"></div><div class="team-footnote">Pembuatan akun baru dilakukan melalui Supabase Authentication. Setelah itu, tambahkan UUID pengguna ke <code>admin_users</code>.</div></section>
       </section>
     </section>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="vendor/xlsx-reader.js"></script>
   <script src="config.js"></script>
   <script src="data.js"></script>
   <script src="assets/shared.js"></script>
+  <script src="assets/importer.js"></script>
   <script src="assets/admin.js"></script>
 </body>
 </html>
